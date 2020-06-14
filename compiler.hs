@@ -1,6 +1,7 @@
 import System.IO  
 import Control.Monad
 import Data.Char
+import System.Environment
 
 keywords = ["int", "return"]
 
@@ -116,14 +117,40 @@ parse toks = let (tree, toks') = program toks
                then tree
                else error $ "Leftover tokens: " ++ show toks'
 
+---- evaluator ----
+-- show
+
+-- data Tree = ProgNode Tree
+--           | FuncNode String Tree
+--           | ExprNode Int
+--           | StatementNode Tree
+
+evaluate :: Tree -> String
+evaluate (FuncNode fname tree) = 
+    let x = evaluate tree 
+    in ".globl " ++ fname ++ "\n" ++ fname ++ ":" ++ "\n" ++ x
+
+evaluate (ProgNode tree) =  evaluate tree 
+
+evaluate (StatementNode tree) =
+    let x = evaluate tree 
+    in "    mov   $" ++ x ++ ", %rax\n    ret"
+
+evaluate (ExprNode x) = show x
 
 ---- main ----
 
+main :: IO()
 main = do  
         let list = []
-        handle <- openFile "return_2.c" ReadMode
+        args <- getArgs
+        handle <- openFile (head args) ReadMode
         contents <- hGetContents handle
-        print contents
-        print (lexor contents)
-        print (parse $ lexor contents)
+      --   print contents
+      --   print (lexor contents)
+      --   print (parse $ lexor contents)
+      --   print (evaluate $ parse $ lexor contents)
+        goodbyeFile <- openFile "assembly.s" WriteMode
+        hPutStrLn goodbyeFile (evaluate $ parse $ lexor contents)
+        hClose goodbyeFile
         hClose handle 
