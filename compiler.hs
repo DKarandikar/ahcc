@@ -87,25 +87,28 @@ function (t:ts) =
                                  in 
                                     if lookAhead tokens == TokRCulryBrace
                                        then (FuncNode id statTree, accept tokens)
-                                       else error "Must be terminated by }"
-                              _ -> error "Invalid func syntax"
-                        _ -> error "Invalid func syntax"
-                  _ -> error "Invalid func syntax"
-            _ -> error $ "Invalid func syntax" ++ show t'
-      _ -> error "Invalid func syntax"
+                                       else error "Invalid func syntax: must be terminated by }"
+                              _ -> error "Invalid func syntax: missing {"
+                        _ -> error "Invalid func syntax: no params yet, need )"
+                  _ -> error "Invalid func syntax: missing ( for params"
+            _ -> error $ "Invalid func syntax: missing func identifier"
+      _ -> error "Invalid func syntax: no return type"
 
 
 statement (t:ts) = 
    case t of
       TokKeyword "return" ->
          let (expTree, tokens) = expr ts
-         in (StatementNode expTree, tokens) -- error here
-      _ -> error "Invalid func syntax"
+         in 
+            if lookAhead tokens == TokSemicolon
+               then (StatementNode expTree, tokens) -- error here
+               else error "missing ;"
+      _ -> error "return expected"
 
 expr (t:ts) =
    case t of
       TokNum num -> (ExprNode num, accept ts )
-      _ -> error "B"
+      _ -> error "Missing return value"
 
 
 
