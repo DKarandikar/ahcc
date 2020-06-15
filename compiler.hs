@@ -26,7 +26,7 @@ lexor (c : cs)
     | c == '(' = TokLParen : lexor cs
     | c == ')' = TokRParen : lexor cs
     | c == ';' = TokSemicolon : lexor cs
-    | c elem "~!-" = TokUnOp c : lexor cs
+    | elem c "~!-" = TokUnOp c : lexor cs
     | isDigit c = number c cs
     | isAlpha c = identifier c cs
     | isSpace c = lexor cs
@@ -49,8 +49,9 @@ identifier c cs =
 
 data Tree = ProgNode Tree
           | FuncNode String Tree
-          | ExprNode Int
-          | StatementNode Tree
+          | ConstNode Int
+          | ReturnNode Tree
+          | UnOpNode Char Tree
     deriving Show
 
 lookAhead :: [Token] -> Token
@@ -103,13 +104,16 @@ statement (t:ts) =
          let (expTree, tokens) = expr ts
          in 
             if lookAhead tokens == TokSemicolon
-               then (StatementNode expTree, accept tokens)
+               then (ReturnNode expTree, accept tokens)
                else error $ "missing ;"
       _ -> error "return expected"
 
 expr (t:ts) =
    case t of
-      TokNum num -> (ExprNode num, ts )
+      TokNum num -> (ConstNode num, ts )
+      TokUnOp op ->
+         let (exprNode, ts') = expr ts
+         in (UnOpNode op exprNode, ts') 
       _ -> error "Missing return value"
 
 
@@ -121,12 +125,6 @@ parse toks = let (tree, toks') = program toks
                else error $ "Leftover tokens: " ++ show toks'
 
 ---- evaluator ----
--- show
-
--- data Tree = ProgNode Tree
---           | FuncNode String Tree
---           | ExprNode Int
---           | StatementNode Tree
 
 evaluate :: Tree -> String
 evaluate (FuncNode fname tree) = 
@@ -135,11 +133,11 @@ evaluate (FuncNode fname tree) =
 
 evaluate (ProgNode tree) =  evaluate tree 
 
-evaluate (StatementNode tree) =
+evaluate (ReturnNode tree) =
     let x = evaluate tree 
     in "    mov   $" ++ x ++ ", %rax\n    ret"
 
-evaluate (ExprNode x) = show x
+evaluate (ConstNode x) = show x
 
 ---- main ----
 
