@@ -101,16 +101,14 @@ statement (t:ts) =
          let (expTree, tokens) = expr ts
          in 
             if lookAhead tokens == TokSemicolon
-               then (StatementNode expTree, tokens) -- error here
-               else error "missing ;"
+               then (StatementNode expTree, accept tokens)
+               else error $ "missing ;"
       _ -> error "return expected"
 
 expr (t:ts) =
    case t of
-      TokNum num -> (ExprNode num, accept ts )
+      TokNum num -> (ExprNode num, ts )
       _ -> error "Missing return value"
-
-
 
 
 parse :: [Token] -> Tree
