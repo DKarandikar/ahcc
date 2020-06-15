@@ -14,6 +14,7 @@ data Token = TokLCurlyBrace
            | TokIdentifier String
            | TokNum Int
            | TokEnd
+           | TokUnOp Char
     deriving (Show, Eq)
 
 
@@ -25,6 +26,7 @@ lexor (c : cs)
     | c == '(' = TokLParen : lexor cs
     | c == ')' = TokRParen : lexor cs
     | c == ';' = TokSemicolon : lexor cs
+    | c elem "~!-" = TokUnOp c : lexor cs
     | isDigit c = number c cs
     | isAlpha c = identifier c cs
     | isSpace c = lexor cs
