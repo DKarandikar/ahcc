@@ -11,6 +11,9 @@ evaluate (ProgNode tree) =  evaluate tree
 
 evaluate (ReturnNode tree) =
     let x = evaluate tree 
-    in "    mov   $" ++ x ++ ", %rax\n    ret"
+    in x ++ "    ret"
 
-evaluate (ConstNode x) = show x
+evaluate (ConstNode x) =  "    mov   $" ++ (show x) ++ ", %rax\n"
+evaluate (UnOpNode op tree)
+    | op == '-' = evaluate tree ++ "    neg    %rax\n"
+    | otherwise = error "WIP"
