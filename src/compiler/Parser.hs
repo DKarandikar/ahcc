@@ -66,7 +66,7 @@ statement (t:ts) =
 expr (t:ts) =
    case t of
       TokNum num -> (ConstNode num, ts )
-      TokUnOp op ->
+      TokReservedChar op ->
          let (exprNode, ts') = expr ts
          in (UnOpNode op exprNode, ts') 
       _ -> error "Missing return value"
