@@ -13,7 +13,9 @@ evaluate (ReturnNode tree) =
     let x = evaluate tree 
     in x ++ "    ret"
 
-evaluate (ConstNode x) =  "    mov   $" ++ (show x) ++ ", %rax\n"
+evaluate (ConstNode x) =  "    movq   $" ++ (show x) ++ ", %rax\n"
 evaluate (UnOpNode op tree)
     | op == '-' = evaluate tree ++ "    neg    %rax\n"
-    | otherwise = error "WIP"
+    | op == '~' = evaluate tree ++ "    not    %rax\n"
+    | op == '!' = evaluate tree ++ "    cmpq   $0, %rax\n    movq   $0, %rax\n    sete    %al\n"
+    | otherwise = error "Invalid unary operation: " ++ [op]
