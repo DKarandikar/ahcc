@@ -22,10 +22,14 @@ doTest s = do
    handle <- openFile s ReadMode
    contents <- hGetContents handle
 
-   print contents
+   print("-------------")
+   putStrLn contents
+   print("-------------")
    print (lexor contents)
+   print("-------------")
+   print (parse $ lexor contents)
    pprint (parse $ lexor contents)
-   print (evaluate $ parse $ lexor contents)
+   putStrLn (evaluate $ parse $ lexor contents)
 
    hClose handle
 
