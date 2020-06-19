@@ -6,6 +6,7 @@ import System.Environment
 import Lexer (lexor)
 import Parser (parse)
 import Evaluator (evaluate)
+import PPrinter (pprint)
 
 doNormal :: String -> IO()
 doNormal s = do
@@ -23,7 +24,7 @@ doTest s = do
 
    print contents
    print (lexor contents)
-   print (parse $ lexor contents)
+   pprint (parse $ lexor contents)
    print (evaluate $ parse $ lexor contents)
 
    hClose handle

@@ -7,6 +7,7 @@ data Tree = ProgNode Tree
           | ConstNode Int
           | ReturnNode Tree
           | UnOpNode Char Tree
+          | BinOpNode Char Tree Tree
     deriving Show
 
 lookAhead :: [Token] -> Token
@@ -63,13 +64,46 @@ statement (t:ts) =
                else error $ "missing ;"
       _ -> error "return expected"
 
-expr (t:ts) =
-   case t of
-      TokNum num -> (ConstNode num, ts )
+expr toks =
+   let (termTree, tokens) = term toks
+   in addTerms termTree tokens
+
+addTerms :: Tree -> [Token] -> (Tree, [Token])
+addTerms tree ts = 
+   case lookAhead ts of 
       TokReservedChar op ->
-         let (exprNode, ts') = expr ts
-         in (UnOpNode op exprNode, ts') 
-      _ -> error "Missing return value"
+         if elem op "+-"
+            then let (termTree, tokens) = term $ accept ts
+                 in addTerms (BinOpNode op tree termTree) tokens
+            else (tree, ts)
+      _ ->  (tree, ts)
+
+term toks = 
+   let (factorTree, tokens) = factor toks
+   in addFactors factorTree tokens
+
+addFactors :: Tree -> [Token] -> (Tree, [Token])
+addFactors tree ts = 
+   case lookAhead ts of 
+      TokReservedChar op ->
+         if elem op "/*"
+            then let (factorTree, tokens) = factor $ accept ts
+                 in addFactors (BinOpNode op tree factorTree) tokens
+            else (tree, ts)
+      _ ->  (tree, ts)
+
+factor (t:ts) = 
+   case t of 
+      TokNum num -> (ConstNode num, ts)
+      TokReservedChar op ->
+         let (factorTree, ts') = factor ts
+         in (UnOpNode op factorTree, ts') 
+      TokLParen -> 
+         let (exprTree, ts') = expr ts
+         in 
+            if lookAhead ts' == TokRParen
+               then (exprTree, accept ts')
+               else error "Factor must end in )" 
 
 
 parse :: [Token] -> Tree
