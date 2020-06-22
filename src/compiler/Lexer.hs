@@ -4,6 +4,14 @@ import Data.Char
 
 keywords = ["int", "return"]
 
+-- Both of these will become TokReservedString
+reservedChars = "~!-+/*<>"
+reservedStrings = ["&&", "||", "==", "!=", "<=", ">="]
+
+
+isSpecialChar :: Char -> Bool
+isSpecialChar a = elem a (reservedChars ++ (concat reservedStrings))
+
 
 data Token = TokLCurlyBrace
            | TokRCulryBrace
@@ -26,10 +34,10 @@ lexor (c : cs)
     | c == '(' = TokLParen : lexor cs
     | c == ')' = TokRParen : lexor cs
     | c == ';' = TokSemicolon : lexor cs
-    | elem c reservedChars = TokReservedString [c] : lexor cs
     | isDigit c = number c cs
     | isAlpha c = identifier c cs
     | isSpace c = lexor cs
+    | isSpecialChar c = reservedString c cs
     | otherwise = error $ "Cannot lexor " ++ [c]
 
 
@@ -44,3 +52,16 @@ identifier c cs =
     in if elem (c:name) keywords
         then TokKeyword (c:name) : lexor cs'
         else TokIdentifier (c:name) : lexor cs'
+
+reservedString :: Char -> String -> [Token]
+reservedString c cs = 
+    let (name, cs') = span isSpecialChar cs 
+    in if length name == 0 
+        then 
+            if elem c reservedChars
+            then TokReservedString [c] : lexor cs
+            else TokIdentifier [c] : lexor cs
+        else
+            if elem (c:name) reservedStrings
+            then TokReservedString (c:name) : lexor cs'
+            else TokIdentifier (c:name) : lexor cs'
