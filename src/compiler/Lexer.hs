@@ -4,6 +4,7 @@ import Data.Char
 
 keywords = ["int", "return"]
 
+
 data Token = TokLCurlyBrace
            | TokRCulryBrace
            | TokLParen
@@ -13,7 +14,7 @@ data Token = TokLCurlyBrace
            | TokIdentifier String
            | TokNum Int
            | TokEnd
-           | TokReservedChar Char
+           | TokReservedString String
     deriving (Show, Eq)
 
 
@@ -25,7 +26,7 @@ lexor (c : cs)
     | c == '(' = TokLParen : lexor cs
     | c == ')' = TokRParen : lexor cs
     | c == ';' = TokSemicolon : lexor cs
-    | elem c "~!-+/*" = TokReservedChar c : lexor cs
+    | elem c reservedChars = TokReservedString [c] : lexor cs
     | isDigit c = number c cs
     | isAlpha c = identifier c cs
     | isSpace c = lexor cs

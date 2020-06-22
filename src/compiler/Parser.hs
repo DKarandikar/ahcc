@@ -6,8 +6,8 @@ data Tree = ProgNode Tree
           | FuncNode String Tree
           | ConstNode Int
           | ReturnNode Tree
-          | UnOpNode Char Tree
-          | BinOpNode Char Tree Tree
+          | UnOpNode String Tree
+          | BinOpNode String Tree Tree
     deriving Show
 
 lookAhead :: [Token] -> Token
@@ -71,8 +71,8 @@ expr toks =
 addTerms :: Tree -> [Token] -> (Tree, [Token])
 addTerms tree ts = 
    case lookAhead ts of 
-      TokReservedChar op ->
-         if elem op "+-"
+      TokReservedString op ->
+         if op == "+" || op == "-"
             then let (termTree, tokens) = term $ accept ts
                  in addTerms (BinOpNode op tree termTree) tokens
             else (tree, ts)
@@ -85,8 +85,8 @@ term toks =
 addFactors :: Tree -> [Token] -> (Tree, [Token])
 addFactors tree ts = 
    case lookAhead ts of 
-      TokReservedChar op ->
-         if elem op "/*"
+      TokReservedString op ->
+         if op == "/" || op == "*"
             then let (factorTree, tokens) = factor $ accept ts
                  in addFactors (BinOpNode op tree factorTree) tokens
             else (tree, ts)
@@ -95,7 +95,7 @@ addFactors tree ts =
 factor (t:ts) = 
    case t of 
       TokNum num -> (ConstNode num, ts)
-      TokReservedChar op ->
+      TokReservedString op ->
          let (factorTree, ts') = factor ts
          in (UnOpNode op factorTree, ts') 
       TokLParen -> 
