@@ -21,7 +21,7 @@ accept (t:ts) = ts
 program :: [Token] -> (Tree, [Token])
 function :: [Token] -> (Tree, [Token])
 statement :: [Token] -> (Tree, [Token])
-expr :: [Token] -> (Tree, [Token])
+additiveExpr :: [Token] -> (Tree, [Token])
 
 program ts = 
    let (tree, ts') = function ts
@@ -61,34 +61,42 @@ statement (t:ts) =
          in 
             if lookAhead tokens == TokSemicolon
                then (ReturnNode expTree, accept tokens)
-               else error $ "missing ;"
+               else error ("missing ; tokens left" ++ show ts)
       _ -> error "return expected"
 
-expr toks =
-   let (termTree, tokens) = term toks
-   in addTerms termTree tokens
+expr toks = 
+   let (tree, tokens) = logicalAndExpr toks
+   in addThings ["||"] logicalAndExpr tree tokens
 
-addTerms :: Tree -> [Token] -> (Tree, [Token])
-addTerms tree ts = 
-   case lookAhead ts of 
-      TokReservedString op ->
-         if op == "+" || op == "-"
-            then let (termTree, tokens) = term $ accept ts
-                 in addTerms (BinOpNode op tree termTree) tokens
-            else (tree, ts)
-      _ ->  (tree, ts)
+logicalAndExpr toks = 
+   let (tree, tokens) = equalityExpr toks
+   in addThings ["&&"] equalityExpr tree tokens
+
+equalityExpr toks = 
+   let (tree, tokens) = relationalExpr toks
+   in addThings ["==", "!="] relationalExpr tree tokens
+
+relationalExpr toks = 
+   let (tree, tokens) = additiveExpr toks
+   in addThings ["<", ">", "<=", ">="] additiveExpr tree tokens
+
+additiveExpr toks =
+   let (termTree, tokens) = term toks
+   in addThings ["+", "-"] term termTree tokens
 
 term toks = 
    let (factorTree, tokens) = factor toks
-   in addFactors factorTree tokens
+   in addThings ["/", "*"] factor factorTree tokens
 
-addFactors :: Tree -> [Token] -> (Tree, [Token])
-addFactors tree ts = 
+-- Recursively adds more expressions of type subExpression, e.g. in <additive-exp> ::= <term> { ("+" | "-") <term> }
+-- this will recursively add terms until no more stringsToCheck (+ or -) are left
+addThings :: [String] -> ([Token] -> (Tree, [Token])) -> Tree -> [Token] -> (Tree, [Token])
+addThings stringsToCheck subExpression tree ts = 
    case lookAhead ts of 
       TokReservedString op ->
-         if op == "/" || op == "*"
-            then let (factorTree, tokens) = factor $ accept ts
-                 in addFactors (BinOpNode op tree factorTree) tokens
+         if elem op stringsToCheck
+            then let (factorTree, tokens) = subExpression $ accept ts
+                 in addThings stringsToCheck subExpression (BinOpNode op tree factorTree) tokens
             else (tree, ts)
       _ ->  (tree, ts)
 
