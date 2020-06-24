@@ -28,8 +28,17 @@ evaluate (BinOpNode op tree tree')
     | op == "-" = concat [evaluate tree, push rax, evaluate tree', pop rcx, doBinOp "subq" rax rcx, move rcx rax]
     | op == "/" = concat [evaluate tree, push rax, evaluate tree', move rax rcx, pop rax, doOp "cqto", doUnOp "idivq" rcx]
     | op == "*" = concat [evaluate tree, push rax, evaluate tree', pop rcx, doBinOp "imul" rcx rax]
+    | op == "==" = generateComparisonAssem "sete" tree tree'
+    | op == "!=" = generateComparisonAssem "setne" tree tree'
+    | op == ">" = generateComparisonAssem "setg" tree tree'
+    | op == "<" = generateComparisonAssem "setl" tree tree'
+    | op == ">=" = generateComparisonAssem "setge" tree tree'
+    | op == "<=" = generateComparisonAssem "setle" tree tree'
     | otherwise  = error "Invalid binary operation: " ++ op
-    
+
+
+generateComparisonAssem:: String -> Tree -> Tree -> String
+generateComparisonAssem op tree tree' = concat[evaluate tree, push rax, evaluate tree', pop rcx, doBinOp "cmpq" rax rcx, move "$0" rax, doUnOp op "%al"]
 
 move :: String -> String -> String
 move v1 v2 = concat ["    movq " ++ v1, ", ", v2, "\n"]
