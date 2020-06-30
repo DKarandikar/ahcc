@@ -49,6 +49,7 @@ eval (BinOpNode op tree tree') = do
         ">=" -> return $ generateComparisonAssem "setge" lh_res rh_res
         "<=" -> return $ generateComparisonAssem "setle" lh_res rh_res
         "||" -> generateOrState lh_res rh_res
+        "&&" -> generateAndState lh_res rh_res
         _  -> error $ "Invalid binary operation: " ++ op
 
 generateOrState :: String -> String -> Evaluator String
@@ -62,6 +63,26 @@ generateOrState lh_res rh_res = do
             , doBinOp "cmpq" "$0" rax
             , "    je  " ++ "_id" ++ x ++ "\n"
             , move "$1" rax
+            , "    jmp " ++ "_id" ++ x' ++ "\n"
+            , "_id" ++ x ++ ":\n"
+            , rh_res
+            , doBinOp "cmpq" "$0" rax
+            , move "$0" rax
+            , doUnOp "setne" "%al"
+            ,  "_id" ++ x' ++ ":\n" ]
+    put (counter + 2)
+    return s
+
+generateAndState :: String -> String -> Evaluator String
+generateAndState lh_res rh_res = do
+    counter <- get
+    let 
+        x = show counter
+        x' = show $ counter + 1 
+        s = concat
+            [ lh_res
+            , doBinOp "cmpq" "$0" rax
+            , "    jne  " ++ "_id" ++ x ++ "\n"
             , "    jmp " ++ "_id" ++ x' ++ "\n"
             , "_id" ++ x ++ ":\n"
             , rh_res
