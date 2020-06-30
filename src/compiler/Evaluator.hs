@@ -1,52 +1,79 @@
 module Evaluator(evaluate) where
 
 import Parser (Tree(..))
+import Control.Monad.State 
 
 rax = "%rax"
 rcx = "%rcx"
 
 evaluate :: Tree -> String
-evaluate tree = getString $ eval 0 tree
+evaluate tree = evalState (eval tree) 0
 
-type AsmState = (Int, String)
+type IdCounter = Int
+type Evaluator = State IdCounter
 
-getString :: AsmState -> String
-getString (_, a) = a
+eval :: Tree -> Evaluator String
 
-getEvalString :: Int -> Tree -> String
-getEvalString counter tree = getString (eval counter tree)
+eval (ProgNode tree) = eval tree
+eval (ConstNode x) = return $ move ('$': (show x)) rax
 
-eval :: Int -> Tree -> AsmState
-eval counter (ProgNode tree) =  eval counter tree 
-eval counter (FuncNode fname tree) = (counter, ".globl " ++ fname ++ "\n" ++ fname ++ ":" ++ "\n" ++ (getEvalString counter tree))
-eval counter (ReturnNode tree) = (counter, (getEvalString counter tree) ++ "    ret")
+eval (ReturnNode tree) = do
+    res <- eval tree
+    return $ res ++ "    ret"
 
-eval counter (ConstNode x) =  (counter, move ('$': (show x)) rax)
-eval counter (UnOpNode op tree)
-    | op == "-" = (counter, concat [getEvalString counter tree, doUnOp "neg" rax])
-    | op == "~" = (counter, concat [getEvalString counter tree, doUnOp "not" rax])
-    | op == "!" = (counter, concat [getEvalString counter tree, doBinOp "cmpq" "$0" rax, move "$0" rax, doUnOp "sete" "%al"])
-    | otherwise = error $ "Invalid unary operation: " ++ op
+eval (FuncNode fname tree) = do
+    res <- eval tree
+    return $ ".globl " ++ fname ++ "\n" ++ fname ++ ":" ++ "\n" ++ res
 
-eval counter (BinOpNode op tree tree') = (counter + case op of 
-    "||" -> 2
-    _ -> 0
-    , case op of 
-    "+" -> concat [getEvalString counter tree, push rax, getEvalString counter tree', pop rcx, doBinOp "addq" rcx rax]
-    "-" -> concat [getEvalString counter tree, push rax, getEvalString counter tree', pop rcx, doBinOp "subq" rax rcx, move rcx rax]
-    "/" -> concat [getEvalString counter tree, push rax, getEvalString counter tree', move rax rcx, pop rax, doOp "cqto", doUnOp "idivq" rcx]
-    "*" -> concat [getEvalString counter tree, push rax, getEvalString counter tree', pop rcx, doBinOp "imul" rcx rax]
-    "==" -> generateComparisonAssem counter "sete" tree tree'
-    "!=" -> generateComparisonAssem counter "setne" tree tree'
-    ">" -> generateComparisonAssem counter "setg" tree tree'
-    "<" -> generateComparisonAssem counter "setl" tree tree'
-    ">=" -> generateComparisonAssem counter "setge" tree tree'
-    "<=" -> generateComparisonAssem counter "setle" tree tree'
-    "||" -> generateOrAsmState counter tree tree'
-    _  -> error $ "Invalid binary operation: " ++ op)
+eval (UnOpNode op tree) = do 
+    res <- eval tree 
+    return $ case op of 
+        "-" -> concat [res, doUnOp "neg" rax]
+        "~" -> concat [res, doUnOp "not" rax]
+        "!" -> concat [res, doBinOp "cmpq" "$0" rax, move "$0" rax, doUnOp "sete" "%al"]
+        _ -> error $ "Invalid unary operation: " ++ op
 
-generateComparisonAssem:: Int -> String -> Tree -> Tree -> String
-generateComparisonAssem counter op tree tree' = concat[getEvalString counter tree, push rax, getEvalString counter tree', pop rcx, doBinOp "cmpq" rax rcx, move "$0" rax, doUnOp op "%al"]
+eval (BinOpNode op tree tree') = do 
+    lh_res <- eval tree 
+    rh_res <- eval tree'
+
+    case op of 
+        "+" -> return $ concat [lh_res, push rax, rh_res, pop rcx, doBinOp "addq" rcx rax]
+        "-" -> return $ concat [lh_res, push rax, rh_res, pop rcx, doBinOp "subq" rax rcx, move rcx rax]
+        "/" -> return $ concat [lh_res, push rax, rh_res, move rax rcx, pop rax, doOp "cqto", doUnOp "idivq" rcx]
+        "*" -> return $ concat [lh_res, push rax, rh_res, pop rcx, doBinOp "imul" rcx rax]
+        "==" -> return $ generateComparisonAssem "sete" lh_res rh_res
+        "!=" -> return $ generateComparisonAssem "setne" lh_res rh_res
+        ">" -> return $ generateComparisonAssem "setg" lh_res rh_res
+        "<" -> return $ generateComparisonAssem "setl" lh_res rh_res
+        ">=" -> return $ generateComparisonAssem "setge" lh_res rh_res
+        "<=" -> return $ generateComparisonAssem "setle" lh_res rh_res
+        "||" -> generateOrState lh_res rh_res
+        _  -> error $ "Invalid binary operation: " ++ op
+
+generateOrState :: String -> String -> Evaluator String
+generateOrState lh_res rh_res = do
+    counter <- get
+    let 
+        x = show counter
+        x' = show $ counter + 1 
+        s = concat
+            [ lh_res
+            , doBinOp "cmpq" "$0" rax
+            , "    je  " ++ "_id" ++ x ++ "\n"
+            , move "$1" rax
+            , "    jmp " ++ "_id" ++ x' ++ "\n"
+            , "_id" ++ x ++ ":\n"
+            , rh_res
+            , doBinOp "cmpq" "$0" rax
+            , move "$0" rax
+            , doUnOp "setne" "%al"
+            ,  "_id" ++ x' ++ ":\n" ]
+    put (counter + 2)
+    return s
+
+generateComparisonAssem:: String -> String -> String -> String
+generateComparisonAssem op lh_res rh_res = concat [lh_res, push rax, rh_res, pop rcx, doBinOp "cmpq" rax rcx, move "$0" rax, doUnOp op "%al"]
 
 move :: String -> String -> String
 move v1 v2 = concat ["    movq " ++ v1, ", ", v2, "\n"]
@@ -65,23 +92,3 @@ doUnOp op v = concat ["    ", op, " ", v, "\n"]
 
 doOp:: String -> String
 doOp op = concat ["    ", op, "\n"]
-
-generateOrAsmState:: Int -> Tree -> Tree -> String
-generateOrAsmState counter tree tree' =  
-    let 
-        x = show counter
-        x' = show $ counter + 1 
-        s = concat
-            [ getEvalString counter tree
-            , doBinOp "cmpq" "$0" rax
-            , "    je  " ++ "_id" ++ x ++ "\n"
-            , move "$1" rax
-            , "    jmp " ++ "_id" ++ x' ++ "\n"
-            , "_id" ++ x ++ ":\n"
-            , getEvalString counter tree'
-            , doBinOp "cmpq" "$0" rax
-            , move "$0" rax
-            , doUnOp "setne" "%al"
-            ,  "_id" ++ x' ++ ":\n" ]
-    in 
-        s
