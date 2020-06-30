@@ -5,8 +5,8 @@ import Data.Char
 keywords = ["int", "return"]
 
 -- Both of these will become TokReservedString
-reservedChars = "~!-+/*<>"
-reservedStrings = ["&&", "||", "==", "!=", "<=", ">="]
+reservedChars = "~!-+/*<>%&|^"
+reservedStrings = ["&&", "||", "==", "!=", "<=", ">=", "<<", ">>"]
 
 
 isSpecialChar :: Char -> Bool

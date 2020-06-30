@@ -69,16 +69,32 @@ expr toks =
    in addThings ["||"] logicalAndExpr tree tokens
 
 logicalAndExpr toks = 
+   let (tree, tokens) = bitwiseOrExpr toks
+   in addThings ["&&"] bitwiseOrExpr tree tokens
+
+bitwiseOrExpr toks = 
+   let (tree, tokens) = bitwiseXorExpr toks
+   in addThings ["|"] bitwiseXorExpr tree tokens
+
+bitwiseXorExpr toks = 
+   let (tree, tokens) = bitwiseAndExpr toks
+   in addThings ["^"] bitwiseAndExpr tree tokens
+
+bitwiseAndExpr toks = 
    let (tree, tokens) = equalityExpr toks
-   in addThings ["&&"] equalityExpr tree tokens
+   in addThings ["&"] equalityExpr tree tokens
 
 equalityExpr toks = 
    let (tree, tokens) = relationalExpr toks
    in addThings ["==", "!="] relationalExpr tree tokens
 
 relationalExpr toks = 
+   let (tree, tokens) = bitwiseShiftExpr toks
+   in addThings ["<", ">", "<=", ">="] bitwiseShiftExpr tree tokens
+
+bitwiseShiftExpr toks =
    let (tree, tokens) = additiveExpr toks
-   in addThings ["<", ">", "<=", ">="] additiveExpr tree tokens
+   in addThings ["<<", ">>"] additiveExpr tree tokens
 
 additiveExpr toks =
    let (termTree, tokens) = term toks
@@ -86,7 +102,7 @@ additiveExpr toks =
 
 term toks = 
    let (factorTree, tokens) = factor toks
-   in addThings ["/", "*"] factor factorTree tokens
+   in addThings ["/", "*", "%"] factor factorTree tokens
 
 -- Recursively adds more expressions of type subExpression, e.g. in <additive-exp> ::= <term> { ("+" | "-") <term> }
 -- this will recursively add terms until no more stringsToCheck (+ or -) are left
