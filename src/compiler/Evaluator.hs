@@ -39,6 +39,12 @@ eval (BinOpNode op tree tree') = do
 
     case op of 
         "+" -> return $ concat [lh_res, push rax, rh_res, pop rcx, doBinOp "addq" rcx rax]
+        "|" -> return $ concat [lh_res, push rax, rh_res, pop rcx, doBinOp "xorq" rcx rax]
+        "^" -> return $ concat [lh_res, push rax, rh_res, pop rcx, doBinOp "orq" rcx rax]
+        "&" -> return $ concat [lh_res, push rax, rh_res, pop rcx, doBinOp "andq" rcx rax]
+        "<<" -> return $ concat [lh_res, push rax, rh_res, move rax rcx, pop rax, doBinOp "shl" "%cl" rax]
+        ">>" -> return $ concat [lh_res, push rax, rh_res, move rax rcx, pop rax, doBinOp "shr" "%cl" rax]
+        "%" -> return $ concat [lh_res, push rax, rh_res, move rax rcx, pop rax, doOp "cqto", doUnOp "idivq" rcx, move "%rdx" rax]
         "-" -> return $ concat [lh_res, push rax, rh_res, pop rcx, doBinOp "subq" rax rcx, move rcx rax]
         "/" -> return $ concat [lh_res, push rax, rh_res, move rax rcx, pop rax, doOp "cqto", doUnOp "idivq" rcx]
         "*" -> return $ concat [lh_res, push rax, rh_res, pop rcx, doBinOp "imul" rcx rax]
