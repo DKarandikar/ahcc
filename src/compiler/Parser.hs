@@ -31,31 +31,29 @@ program ts =
    let (tree, ts') = function ts
    in (ProgNode tree, ts')
 
-function (t:ts) = 
-   case t of
-      TokKeyword "int" ->
-         let (t':ts') = ts
-         in case t' of
-            TokIdentifier id -> 
-               let (t'':ts'') =  ts'
-               in case t'' of 
-                  TokLParen -> 
-                     let (t''':ts''') = ts''
-                     in case t''' of
-                        TokRParen -> 
-                           let (t'''':ts'''') = ts'''
-                           in case t'''' of
-                              TokLCurlyBrace -> 
-                                 let (statTrees, tokens) = statements [] ts''''
-                                 in 
-                                    if lookAhead tokens == TokRCulryBrace
-                                       then (FuncNode id statTrees, accept tokens)
-                                       else error "Invalid func syntax: must be terminated by }"
-                              _ -> error "Invalid func syntax: missing {"
-                        _ -> error "Invalid func syntax: no params yet, need )"
-                  _ -> error "Invalid func syntax: missing ( for params"
-            _ -> error $ "Invalid func syntax: missing func identifier"
-      _ -> error "Invalid func syntax: no return type"
+consumeAndCheckTok :: Token -> [Token] -> [Token]
+consumeAndCheckTok tokToCheck (t:ts) = 
+   case t of 
+      tokToCheck -> ts
+      _ -> error $ "Invalid syntax, expected: " ++ (show tokToCheck)
+
+consumeAndCheckTokIdentifier :: [Token] -> ([Token], String)
+consumeAndCheckTokIdentifier (t:ts) = 
+   case t of 
+      TokIdentifier id -> (ts, id)
+      _ -> error $ "Invalid syntax, expected: tokIdentifier"
+
+function toks = 
+   let 
+      toks' = consumeAndCheckTok (TokKeyword "int") toks
+      (toks'', id) = consumeAndCheckTokIdentifier toks'
+      toks''' = consumeAndCheckTok TokLParen toks''
+      toks'''' = consumeAndCheckTok TokRParen toks'''
+      toks''''' = consumeAndCheckTok TokLCurlyBrace toks''''
+      (statTrees, tokens) = statements [] toks'''''
+      tokens' = consumeAndCheckTok TokRCulryBrace tokens
+   in
+      (FuncNode id statTrees, accept tokens)
 
 statements :: [Tree] -> [Token] -> ([Tree], [Token])
 statements trees (t:ts) = 
