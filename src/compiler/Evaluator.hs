@@ -22,7 +22,7 @@ eval (ReturnNode tree) = do
     return $ res ++ "    ret"
 
 eval (FuncNode fname tree) = do
-    res <- eval tree
+    res <- eval $ head tree
     return $ ".globl " ++ fname ++ "\n" ++ fname ++ ":" ++ "\n" ++ res
 
 eval (UnOpNode op tree) = do 

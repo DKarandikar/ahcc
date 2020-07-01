@@ -5,7 +5,7 @@ import Data.Char
 keywords = ["int", "return"]
 
 -- Both of these will become TokReservedString
-reservedChars = "~!-+/*<>%&|^"
+reservedChars = "~!-+/*<>%&|^="
 reservedStrings = ["&&", "||", "==", "!=", "<=", ">=", "<<", ">>"]
 
 

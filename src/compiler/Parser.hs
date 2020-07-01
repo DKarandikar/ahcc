@@ -3,11 +3,15 @@ module Parser(parse, Tree(..)) where
 import Lexer (Token(..))
 
 data Tree = ProgNode Tree
-          | FuncNode String Tree
+          | FuncNode String [Tree]
           | ConstNode Int
           | ReturnNode Tree
           | UnOpNode String Tree
           | BinOpNode String Tree Tree
+          | DeclNode String (Maybe Tree)
+          | ExprNode Tree
+          | VarNode String
+          | AssignNode String Tree
     deriving Show
 
 lookAhead :: [Token] -> Token
@@ -42,16 +46,23 @@ function (t:ts) =
                            let (t'''':ts'''') = ts'''
                            in case t'''' of
                               TokLCurlyBrace -> 
-                                 let (statTree, tokens) = statement ts''''
+                                 let (statTrees, tokens) = statements [] ts''''
                                  in 
                                     if lookAhead tokens == TokRCulryBrace
-                                       then (FuncNode id statTree, accept tokens)
+                                       then (FuncNode id statTrees, accept tokens)
                                        else error "Invalid func syntax: must be terminated by }"
                               _ -> error "Invalid func syntax: missing {"
                         _ -> error "Invalid func syntax: no params yet, need )"
                   _ -> error "Invalid func syntax: missing ( for params"
             _ -> error $ "Invalid func syntax: missing func identifier"
       _ -> error "Invalid func syntax: no return type"
+
+statements :: [Tree] -> [Token] -> ([Tree], [Token])
+statements trees (t:ts) = 
+   case t of 
+      TokRCulryBrace -> (trees, t:ts)
+      _ -> let (statTree, tokens) = statement $ t:ts
+           in statements (trees ++ [statTree]) tokens
 
 
 statement (t:ts) = 
@@ -62,11 +73,49 @@ statement (t:ts) =
             if lookAhead tokens == TokSemicolon
                then (ReturnNode expTree, accept tokens)
                else error ("missing ; tokens left" ++ show ts)
-      _ -> error "return expected"
+      TokKeyword "int" ->
+         let (t':ts') = ts 
+         in case t' of 
+            TokIdentifier a ->
+               let (t'':ts'') = ts' 
+               in case t'' of 
+                  TokSemicolon -> (DeclNode a Nothing, ts'')
+                  TokReservedString s -> if s == "="
+                     then 
+                        let (expTree, toks) = expr ts''
+                        in 
+                           if lookAhead toks == TokSemicolon
+                              then (DeclNode a (Just expTree), accept toks)
+                              else error "Expression should end in ;"
+                     else
+                        error "Missing ="
+                  _ -> error "Need to follow var name with ; or ="
+            _ -> error "Missing variable name"   
+      _ -> 
+         let (exprTree, toks) = expr (t:ts)
+         in 
+            if lookAhead toks == TokSemicolon
+               then (exprTree, accept toks)
+               else error "Expression should end in ;" 
 
-expr toks = 
-   let (tree, tokens) = logicalAndExpr toks
-   in addThings ["||"] logicalAndExpr tree tokens
+expr (t:ts) = 
+   case t of 
+      TokIdentifier a -> 
+         let (t':ts') = ts
+         in case t' of
+            TokReservedString s -> if s == "=" 
+               then 
+                  let (exprTree, toks) = expr ts'
+                  in (AssignNode a exprTree, toks)
+               else 
+                  let (tree, tokens) = logicalAndExpr (t:ts)
+                  in addThings ["||"] logicalAndExpr tree tokens
+            _ ->  
+               let (tree, tokens) = logicalAndExpr (t:ts)
+               in addThings ["||"] logicalAndExpr tree tokens
+      _ ->
+         let (tree, tokens) = logicalAndExpr (t:ts)
+         in addThings ["||"] logicalAndExpr tree tokens
 
 logicalAndExpr toks = 
    let (tree, tokens) = bitwiseOrExpr toks
@@ -128,7 +177,8 @@ factor (t:ts) =
             if lookAhead ts' == TokRParen
                then (exprTree, accept ts')
                else error "Factor must end in )" 
-
+      TokIdentifier a -> (VarNode a, ts)
+      _ -> error $ "Invalid factor token: " ++ (show t) ++ " at " ++ (show ts)
 
 parse :: [Token] -> Tree
 parse toks = let (tree, toks') = program toks

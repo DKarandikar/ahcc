@@ -17,7 +17,7 @@ getIndent n = concat $ replicate n "    "
 strTree :: Int -> Tree -> String
 
 strTree n (ProgNode tree) = strTree n tree
-strTree n (FuncNode name tree) = "FUN " ++ name ++ ":\n" ++ strTree (n+1) tree
+strTree n (FuncNode name trees) = "FUN " ++ name ++ ":\n" ++ (concat [strTree (n+1) tree ++ "\n" | tree <- trees])
 strTree n (ReturnNode tree) = (getIndent n) ++ "RETURN " ++ strTree n tree
 strTree n (ConstNode num) = "INT<" ++ (show num) ++ ">"
 strTree n (UnOpNode s tree) = "(" ++ s ++ (strTree n tree) ++ ")"
