@@ -64,4 +64,7 @@ reservedString c cs =
         else
             if elem (c:name) reservedStrings
             then TokReservedString (c:name) : lexor cs'
-            else TokIdentifier (c:name) : lexor cs'
+            else 
+                if elem c reservedChars
+                    then TokReservedString [c] : lexor (name ++ cs')
+                    else TokIdentifier (c:name) : lexor cs'
