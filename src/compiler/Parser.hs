@@ -33,9 +33,9 @@ program ts =
 
 consumeAndCheckTok :: Token -> [Token] -> [Token]
 consumeAndCheckTok tokToCheck (t:ts) = 
-   case t of 
-      tokToCheck -> ts
-      _ -> error $ "Invalid syntax, expected: " ++ (show tokToCheck)
+   if t == tokToCheck
+      then ts
+      else error $ "Invalid syntax, expected: " ++ (show tokToCheck)
 
 consumeAndCheckTokIdentifier :: [Token] -> ([Token], String)
 consumeAndCheckTokIdentifier (t:ts) = 
