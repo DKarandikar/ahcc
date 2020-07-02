@@ -19,6 +19,6 @@ executable c-compiler
   main-is:             Main.hs
   -- other-modules:       
   -- other-extensions:    
-  build-depends:       base >=4.9 && <4.10, mtl>=2.2 && <2.3
+  build-depends:       base >=4.6 && <4.10, mtl>=2.0 && <2.3
   hs-source-dirs:      src,src/compiler
   default-language:    Haskell2010
