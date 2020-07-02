@@ -48,74 +48,50 @@ eval (BinOpNode op tree tree') = do
         "-" -> return $ concat [lh_res, push rax, rh_res, pop rcx, doBinOp "subq" rax rcx, move rcx rax]
         "/" -> return $ concat [lh_res, push rax, rh_res, move rax rcx, pop rax, doOp "cqto", doUnOp "idivq" rcx]
         "*" -> return $ concat [lh_res, push rax, rh_res, pop rcx, doBinOp "imul" rcx rax]
-        "==" -> return $ generateComparisonAssem "sete" lh_res rh_res
-        "!=" -> return $ generateComparisonAssem "setne" lh_res rh_res
-        ">" -> return $ generateComparisonAssem "setg" lh_res rh_res
-        "<" -> return $ generateComparisonAssem "setl" lh_res rh_res
-        ">=" -> return $ generateComparisonAssem "setge" lh_res rh_res
-        "<=" -> return $ generateComparisonAssem "setle" lh_res rh_res
-        "||" -> generateOrState lh_res rh_res
-        "&&" -> generateAndState lh_res rh_res
+        "==" -> return $ generateComparisonAsm "sete" lh_res rh_res
+        "!=" -> return $ generateComparisonAsm "setne" lh_res rh_res
+        ">" -> return $ generateComparisonAsm "setg" lh_res rh_res
+        "<" -> return $ generateComparisonAsm "setl" lh_res rh_res
+        ">=" -> return $ generateComparisonAsm "setge" lh_res rh_res
+        "<=" -> return $ generateComparisonAsm "setle" lh_res rh_res
+        "||" -> generateOrAndState generateOrAsm lh_res rh_res
+        "&&" -> generateOrAndState generateAndAsm lh_res rh_res
         _  -> error $ "Invalid binary operation: " ++ op
 
-generateOrState :: String -> String -> Evaluator String
-generateOrState lh_res rh_res = do
+generateOrAndState :: (String -> String -> String -> String -> String) -> String -> String -> Evaluator String
+generateOrAndState asmGenerator lh_res rh_res = do
     counter <- get
-    let 
-        x = show counter
-        x' = show $ counter + 1 
-        s = concat
-            [ lh_res
-            , doBinOp "cmpq" "$0" rax
-            , "    je  " ++ "_id" ++ x ++ "\n"
-            , move "$1" rax
-            , "    jmp " ++ "_id" ++ x' ++ "\n"
-            , "_id" ++ x ++ ":\n"
-            , rh_res
-            , doBinOp "cmpq" "$0" rax
-            , move "$0" rax
-            , doUnOp "setne" "%al"
-            ,  "_id" ++ x' ++ ":\n" ]
     put (counter + 2)
-    return s
-
-generateAndState :: String -> String -> Evaluator String
-generateAndState lh_res rh_res = do
-    counter <- get
     let 
-        x = show counter
-        x' = show $ counter + 1 
-        s = concat
-            [ lh_res
-            , doBinOp "cmpq" "$0" rax
-            , "    jne  " ++ "_id" ++ x ++ "\n"
-            , "    jmp " ++ "_id" ++ x' ++ "\n"
-            , "_id" ++ x ++ ":\n"
-            , rh_res
-            , doBinOp "cmpq" "$0" rax
-            , move "$0" rax
-            , doUnOp "setne" "%al"
-            ,  "_id" ++ x' ++ ":\n" ]
-    put (counter + 2)
-    return s
+        id_1 = "_id" ++ (show counter)
+        id_2 = "_id" ++ (show (counter + 1))
+    return $ asmGenerator lh_res rh_res id_1 id_2
 
-generateComparisonAssem:: String -> String -> String -> String
-generateComparisonAssem op lh_res rh_res = concat [lh_res, push rax, rh_res, pop rcx, doBinOp "cmpq" rax rcx, move "$0" rax, doUnOp op "%al"]
 
-move :: String -> String -> String
+generateOrAsm lh_res rh_res id_1 id_2 = concat[
+    lh_res, doBinOp "cmpq" "$0" rax, doLabelOp "je" id_1, move "$1" rax, doLabelOp "jmp" id_2, 
+    labelLine id_1, rh_res, doBinOp "cmpq" "$0" rax, move "$0" rax, doUnOp "setne" "%al", 
+    labelLine id_2 ]
+
+generateAndAsm lh_res rh_res id_1 id_2 = concat[
+    lh_res, doBinOp "cmpq" "$0" rax, doLabelOp "jne" id_1, doLabelOp "jmp" id_2, 
+    labelLine id_1, rh_res, doBinOp "cmpq" "$0" rax, move "$0" rax, doUnOp "setne" "%al", 
+    labelLine id_2 ]
+
+generateComparisonAsm op lh_res rh_res = concat [lh_res, push rax, rh_res, pop rcx, doBinOp "cmpq" rax rcx, move "$0" rax, doUnOp op "%al"]
+
+doLabelOp op id = concat ["    ", op, " ", id, "\n"]
+
+labelLine id = concat [id, ":", "\n"]
+
 move v1 v2 = concat ["    movq " ++ v1, ", ", v2, "\n"]
 
-push :: String -> String
 push v = concat ["    push ", v, "\n"]
 
-pop :: String -> String
 pop v = concat ["    pop ", v, "\n"]
 
-doBinOp:: String -> String -> String -> String
 doBinOp op v1 v2 = concat ["    ", op, " ", v1, ", ", v2, "\n"]
 
-doUnOp:: String -> String -> String
 doUnOp op v = concat ["    ", op, " ", v, "\n"]
 
-doOp:: String -> String
 doOp op = concat ["    ", op, "\n"]
