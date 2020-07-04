@@ -19,11 +19,11 @@ eval (ConstNode x) = return $ move ('$': (show x)) rax
 
 eval (ReturnNode tree) = do
     res <- eval tree
-    return $ res ++ "    ret"
+    return $ concat [res, move "%rbp" "%rsp", doUnOp "pop" "%rbp", "    ret"]  -- fn epilogue
 
 eval (FuncNode fname tree) = do
     res <- eval $ head tree
-    return $ ".globl " ++ fname ++ "\n" ++ fname ++ ":" ++ "\n" ++ res
+    return $ concat [".globl ", fname, "\n", fname, ":\n", doUnOp "push" "%rbp", move "%rsp" "%rbp", res]  --fn prologue
 
 eval (UnOpNode op tree) = do 
     res <- eval tree 
